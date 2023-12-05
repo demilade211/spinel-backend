@@ -344,3 +344,116 @@ export const addToWishlist = async (req, res, next) => {
         next(error);
     }
 };
+
+export const removeFromCart = async (req, res, next) => {
+    const { productId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        const user = await UserModel.findById(userId);
+
+        if (!user) {
+            return next(new ErrorHandler("User not found", 404));
+        }
+
+        // Find the index of the product in the cart
+        const productIndex = user.cartItems.findIndex(item => item.product.toString() === productId);
+
+        if (productIndex !== -1) {
+            // If the product is found in the cart, remove it
+            user.cartItems.splice(productIndex, 1);
+            await user.save();
+
+            return res.status(200).json({
+                success: true,
+                message: 'Product removed from cart successfully'
+            });
+        } else {
+            return next(new ErrorHandler("Product not found in the cart", 404));
+        }
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const removeFromWishlist = async (req, res, next) => {
+    const { productId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        const user = await UserModel.findById(userId);
+
+        if (!user) {
+            return next(new ErrorHandler("User not found", 404));
+        }
+
+        // Find the index of the product in the wishlist
+        const wishlistIndex = user.wishItems.findIndex(item => item.product.toString() === productId);
+
+        if (wishlistIndex !== -1) {
+            // If the product is found in the wishlist, remove it
+            user.wishItems.splice(wishlistIndex, 1);
+            await user.save();
+
+            return res.status(200).json({
+                success: true,
+                message: 'Product removed from wishlist successfully'
+            });
+        } else {
+            return next(new ErrorHandler("Product not found in the wishlist", 404));
+        }
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateCartQuantity = async (req, res, next) => {
+    const { productId } = req.params;
+    const { action, quantity } = req.body;
+    const userId = req.user.id;
+
+    try {
+        const user = await UserModel.findById(userId);
+
+        if (!user) {
+            return next(new ErrorHandler("User not found", 404));
+        }
+
+        const product = await ProductModel.findById(productId);
+
+        if (!product) {
+            return next(new ErrorHandler("Product not found", 404));
+        }
+
+        const existingCartItem = user.cartItems.find(item => item.product.toString() === productId);
+
+        if (!existingCartItem) {
+            return next(new ErrorHandler("Product not found in the cart", 404));
+        }
+
+        switch (action) {
+            case 'increase':
+                existingCartItem.quantity += Number(quantity) || 1;
+                break;
+            case 'reduce':
+                if (existingCartItem.quantity > 1) {
+                    existingCartItem.quantity -= Number(quantity) || 1;
+                } else {
+                    // Optionally, you can remove the item from the cart if quantity becomes zero
+                    // user.cartItems = user.cartItems.filter(item => item.product.toString() !== productId);
+                }
+                break;
+            default:
+                return next(new ErrorHandler("Invalid action", 400));
+        }
+
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: `Cart quantity ${action}d successfully`
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
